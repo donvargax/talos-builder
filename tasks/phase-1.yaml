@@ -50,3 +50,41 @@
     - run: make check
     - run: make plan
     - run: itos config check
+- id: T-3
+  type: build
+  title: Port vendor-kernel inputs and build a Talos 1.14.2 candidate
+  why: >
+    User approved2026-10-08 proceeding toward a public hosted Talos1.14.2 vendor-kernel candidate.
+    Depends on T-2 controlled workflow. Read docs/build-plan.md. Rebase Makefile source pins and
+    patches to stable v1.14.2, matching verified full pkgs/tools source commits (upstream references
+    v1.14.0-37-g6c312e4 and v1.14.0-8-g9776960), matching pinned vendor raspberrypi/linux kernel and
+    device trees, and the appropriate SBC overlay. Verify source archive hashes, preserve Talos
+    kernel security/runtime requirements, Pi5 RP1 Ethernet/USB/SD and XFS support, and required
+    initramfs modules. Inspect carried MACB fixes against chosen source and document
+    already-upstream/removed/ported patches with evidence rather than force-applying stale or
+    duplicate patches. No kernel driver development without reporting expanded scope. Avoid
+    unnecessary inherited extensions; no current workload requires gvisor/iSCSI/Longhorn; document
+    defaultextension choices. Keep TALOS_VERSION in Makefile explicitly v1.14.2 and consistent with
+    plan/provenance. Local clones/downloads/source patch preflight/lightweight checks allowed, no
+    local compilation or Docker image builds. Once pinned inputs apply cleanly and fast CI passes on
+    pushed main, explicitly dispatch the T-2 ARM64 candidate workflow for that exact SHA, watch with
+    event-driven background gh run watch (no polling/sleep), fix genuine build causes without
+    weakening gates, and retry boundedly. Artifacts must contain raw arm64 Pi5 recovery image,
+    installer archive, SHA256 checksums, exact dependency/patch/build metadata, and retained failure
+    logs. Verify run SHA, final step outcomes, artifact names/digests; report what actually built,
+    not claims from filenames. Document failed/successful run URLs, limitations, and next action in
+    docs/build-evidence.md and README/build plan. Build success is not hardware
+    boot/upgradability/Ethernet stability or preservation verification and does not authorize
+    cluster operations, disk flashes, firmware changes, or minor-version skipping. No production
+    release/latest tag publication; candidate-only scope from T-2. Stop after three substantive
+    failed hosted build iterations or an unexpected need for new privileges/source trust/driver
+    work, preserving precise evidence and remaining item status. Commit with itos, body says why;
+    one implementing agent, explicit staged files, pushed-head fast CI green and actual candidate
+    build green before closure, then push closure. Offline commit checks do not require live GitHub
+    or cluster access.
+  done_when:
+    - run: make check
+    - run: make plan
+    - run: grep -Eq '^TALOS_VERSION[[:space:]]*:?=[[:space:]]*v1\.14\.2[[:space:]]*$' Makefile
+    - run: test -s docs/build-evidence.md
+    - run: itos config check
