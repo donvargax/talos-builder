@@ -57,7 +57,7 @@ items:
     phase: 1
     owner: null
     status: todo
-    depends_on: []
+    depends_on: [T-2]
     kind: task
     why: >
       User approved2026-10-08 proceeding toward a public hosted Talos1.14.2 vendor-kernel candidate.
@@ -88,3 +88,4 @@ items:
       and remaining item status. Commit with itos, body says why; one implementing agent, explicit
       staged files, pushed-head fast CI green and actual candidate build green before closure, then
       push closure. Offline commit checks do not require live GitHub or cluster access.
+    refs: [docs/build-plan.md]
