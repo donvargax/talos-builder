@@ -1,0 +1,20 @@
+# The work registry: who owns each phase and each piece of work, and what
+# waits on what. itos work shows what can start; itos work check validates it.
+# An item:
+#
+#   - id: T-2 # a task's ID, or a name of its own
+#     title: What it is
+#     phase: 1
+#     owner: null # a handle, or null
+#     status: todo # todo, doing, done or blocked
+#     depends_on: []
+phases:
+  1: null # the ledger's phase 1, owned by nobody: a handle, or null
+items:
+  - id: T-1
+    title: Adopt itos
+    phase: 1
+    owner: null
+    status: todo
+    depends_on: []
+    kind: task

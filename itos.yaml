@@ -1,0 +1,38 @@
+# itos.yaml, written by itos init: this repository's rules for its commits,
+# kept small to grow. itos config check validates it; itos config check
+# --print-defaults prints every key it leaves to its default.
+version: 1
+
+# The itos release this repository runs: a global itos fetches it, checks it
+# against these checksums and runs it. itos pin moves it to the newest.
+pin:
+  version: "6.5.1"
+  checksums: "1a0ac1e1fdb920668e3cba96cad9ea94d23d2c1b667fe4f60d5d77f1573a8a08" # the SHA-256 of the release's checksums.txt
+
+# The tasks: every commit but a feat, a fix or a docs names one in its Task
+# footer (itos commit --task T-1), and itos task T-1 runs its checks.
+ledger:
+  files: "tasks/phase-{group}.yaml" # one file per phase: tasks/phase-1.yaml, …
+  id: "T-\\d+"
+
+commits:
+  # The Conventional Commits types, held to commitlint's config-conventional
+  # rules by itos's own lint.
+  types: [feat, fix, refactor, perf, test, build, ci, chore, docs, style, revert]
+  header_lint: { use: builtin }
+  footers:
+    Task:
+      source: ledger
+      required_for: [refactor, perf, test, build, ci, chore, style, revert]
+      validate_for: all # a task named must be in the ledger
+      read_at: commit # judged against the ledger the commit carries
+  # Where verification starts: this commit and the ones before it, written
+  # before itos, are never judged.
+  since: "9e8a06ccfb88da4f93fcc3fa34aebdfdfa53c053"
+  # Which paths each type may touch. docs needs no Task footer, so it may
+  # touch only Markdown, docs/ and itos's data in tasks/; the rest, anything.
+  scopes:
+    docs: { only: ["**/*.md", "docs/**", "tasks/**"] }
+
+hooks:
+  bin: itos # the hooks call the global itos, which runs the release pinned
