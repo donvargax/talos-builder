@@ -1,0 +1,23 @@
+{
+  "name": "Offline checks",
+  "on": {"push": {}, "pull_request": {}},
+  "permissions": {"contents": "read"},
+  "concurrency": {"group": "offline-${{ github.workflow }}-${{ github.ref }}", "cancel-in-progress": true},
+  "jobs": {
+    "check": {
+      "runs-on": "ubuntu-24.04",
+      "timeout-minutes": 10,
+      "env": {"ITOS_NO_UPDATE": "1", "ITOS_NO_UPDATE_NOTICE": "1"},
+      "steps": [
+        {
+          "name": "Checkout without persisted credentials",
+          "uses": "actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5",
+          "with": {"persist-credentials": false, "fetch-depth": 0}
+        },
+        {"name": "Install verified itos 6.5.1", "run": "bash scripts/install-itos.sh"},
+        {"name": "Offline contracts and dry plan", "run": "make check plan"},
+        {"name": "Verify managed commit history", "run": "itos verify 9e8a06ccfb88da4f93fcc3fa34aebdfdfa53c053 HEAD"}
+      ]
+    }
+  }
+}

@@ -26,6 +26,11 @@ commits:
       required_for: [refactor, perf, test, build, ci, chore, style, revert]
       validate_for: all # a task named must be in the ledger
       read_at: commit # judged against the ledger the commit carries
+    Item:
+      source: registry
+      required_for: []
+      validate_for: all
+      read_at: commit
   # Where verification starts: this commit and the ones before it, written
   # before itos, are never judged.
   since: "9e8a06ccfb88da4f93fcc3fa34aebdfdfa53c053"
@@ -36,3 +41,9 @@ commits:
 
 hooks:
   bin: itos # the hooks call the global itos, which runs the release pinned
+
+ci:
+  watch:
+    provider: github
+    github:
+      workflow: ci.yml

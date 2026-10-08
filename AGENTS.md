@@ -48,6 +48,7 @@ A commit's type is one of `feat`, `fix`, `refactor`, `perf`, `test`, `build`, `c
 ### Footers
 
 - `Task:` names tasks of the ledger, `tasks/phase-{group}.yaml`.
+- `Item:` names items of the work registry, `tasks/work-items.yaml`.
 
 The footers each type needs:
 

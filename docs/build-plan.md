@@ -80,3 +80,38 @@ future hardware test; no flashing or formatting is part of this plan.
 recorded. No builder code changed, image compiled, workflow dispatched, or image
 published. The inherited workflow only ran for version tags, so bootstrap pushes
 have no hosted CI until the workflow task lands.
+
+## Controlled workflow checkpoint (T-2)
+
+The workflow definition now separates fast `ci.yml` push/PR checks from manual
+`build.yaml` candidate jobs. itos watches `ci.yml` for the pushed commit. The
+candidate job is restricted to this fork's `main` dispatch SHA on the hosted
+`ubuntu-24.04-arm` runner, with read-only repository permissions, a 180-minute
+timeout and one-at-a-time concurrency. There are no arbitrary version/ref inputs,
+automatic build triggers, registry credentials or release steps.
+
+Intermediates use only `localhost:5000/donvargax/talos-builder` on a loopback-bound
+runner-local registry. Both native ARM64 BuildKit and imager containers use host
+networking; BuildKit permits HTTP for this local address. Candidate tags include
+the full SHA, run ID and attempt. No public GHCR upload is needed, and the final
+installer archive is retained without an unconditional `crane push`.
+
+Artifacts have 14-day retention and include the installer archive, compressed raw
+Pi 5 image, hashes, input/patch/checkouts/tool provenance and phase logs when
+available. Failure collection/upload runs with `always()`; early bootstrap or
+timeout failures also have GitHub's step logs. Evidence collection is allowlisted,
+not a scan of credentials, machine configuration or historical logs.
+
+`make check` is offline and uses stdlib unit tests, strict workflow structure
+checks, shell/Python syntax checks and itos data validation. Workflows use JSON,
+a YAML subset, to avoid adding a network-installed parser. `make plan` and
+`make -n plan` are safe locally. Image-build and checkout-deletion targets refuse
+execution outside the controlled hosted job. Sources may still be inspected and
+patches preflighted locally without compilation.
+
+The Talos 1.13.2, pkgs and overlay inputs remain inherited and are not evidence of
+a 1.14.2 port. No heavy workflow was dispatched as part of T-2. T-3 must verify
+the full matched source/tool/archive inputs before the first candidate run. The
+old tag/release, local compilation, disk-flashing and upgrade instructions are
+not the procedure for this fork. No image build or hardware result is claimed
+by this workflow definition.

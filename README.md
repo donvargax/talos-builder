@@ -1,120 +1,103 @@
-# Raspberry Pi 5 Talos Builder
+# Raspberry Pi 5 Talos builder
 
-This repository builds custom Talos Linux images for the **Raspberry Pi 5**. It patches the Kernel and Talos build process to use the Linux Kernel source provided by [raspberrypi/linux](https://github.com/raspberrypi/linux).
+This public fork of [johnlaur/talos-builder](https://github.com/johnlaur/talos-builder)
+prepares custom Talos Linux candidates for Raspberry Pi 5 using the
+[Raspberry Pi vendor kernel](https://github.com/raspberrypi/linux) and matching
+device trees. The approved target is Talos **1.14.2**. The committed build inputs
+are still the inherited **1.13.2** baseline; T-3 must port and verify them before
+any candidate build is dispatched.
 
-## Tested on
+No candidate has been compiled or hardware-tested by this workflow change.
+A green offline check, or even a later successful compile, does not establish
+boot compatibility, upgrade safety, Ethernet stability, or preservation of data.
+See [the approved build plan](docs/build-plan.md) for scope and work order.
 
-So far, this release has been verified on:
+## Safe local checks
 
-| ✅ Hardware                                                |
-|------------------------------------------------------------|
+With Python 3, Bash, GNU Make, Git and the repository-pinned itos 6.5.1 installed:
+
+```bash
+make check
+make plan
+make -n plan
+```
+
+`make check` runs stdlib `unittest` contract tests, parses workflows, checks shell
+and Python syntax, and validates itos configuration/task data. It does not build,
+download dependencies, invoke Docker, or contact a cluster. `make plan` prints
+the committed inputs and phases without executing them. Build targets refuse
+execution outside the controlled hosted ARM64 job.
+
+Pushes and pull requests run only these fast checks and managed-commit
+verification in [ci.yml](.github/workflows/ci.yml). CI installs itos 6.5.1 only
+after checking its release checksum manifest against the committed hash and
+verifying the platform archive. No PR write permissions or registry credentials
+are used. itos watches this workflow for the exact pushed SHA.
+
+## Manual hosted candidate pipeline
+
+[build.yaml](.github/workflows/build.yaml) accepts only `workflow_dispatch`, with
+no version/ref inputs. After T-3 ports the inputs and the pushed commit's fast CI
+passes, an authorized maintainer may select the workflow's **Run workflow** action
+on `main`. The job checks out the dispatch SHA, runs on GitHub-hosted
+`ubuntu-24.04-arm`, and has a 180-minute timeout and one-at-a-time concurrency.
+Do not dispatch it during T-2. Tags and ordinary pushes never start image builds.
+
+Kernel, overlay, installer-base and imager intermediates stay in a registry bound
+to the ephemeral runner's loopback address. Native ARM64 BuildKit and the imager
+use host networking to reach `localhost:5000`; BuildKit explicitly allows HTTP
+only for this local registry. The namespace is `donvargax/talos-builder`, and
+tags include the full commit SHA, run ID and attempt. `PUSH=true` in this job means
+push to that local registry, **not GHCR**. No public image uploads, GitHub releases,
+production tags or `latest` tags are created. Checkout does not retain its token;
+the job has only `contents: read`. The privileged imager container is confined
+to the disposable hosted runner, not a local or cluster machine.
+
+The job uploads `pi5-candidate-<SHA>-<run ID>-<attempt>` evidence for 14 days,
+including on failure. A successful build must include:
+
+- `metal-arm64-rpi5.raw.xz`, the compressed raw Pi 5 recovery image;
+- `installer-arm64.tar`, the installer container archive, without publication;
+- `SHA256SUMS` for the captured files;
+- `provenance.json`, recording committed pins, input/patch hashes, resolved
+  checkout commits before/after patches, runner identity and tool versions;
+- the printed plan and phase logs, plus bounded local registry/builder diagnostics.
+
+Failure evidence can contain metadata/logs without either image. GitHub's step
+logs remain the source for checkout or tool-bootstrap failures and runner timeout
+diagnostics. Always verify the run's SHA and step outcomes; artifact names alone
+do not prove success. No runtime machine configuration, credential files, full
+environment dumps, or historical Actions logs are collected.
+
+Workflows are written as JSON, a valid YAML subset, so offline checks can parse
+their full structure with Python's standard library. Regression tests reject
+automatic build triggers, arbitrary inputs, write credentials, public publication,
+unsafe namespaces/tags and missing failure-artifact handling. Action commits,
+Buildx version, BuildKit image digest and registry image digest are pinned.
+
+## Extensions and hardware scope
+
+No system extensions are selected by default. The inherited iSCSI/util-linux
+extension resolution has not been carried into the workflow. Add an extension
+only through a reviewed, pinned input change with a documented need; no live
+extension change is authorized. The vendor kernel/device-tree port is T-3 work.
+
+Upstream reported tests on the following hardware for earlier builds. These are
+upstream historical reports, not verification of a candidate from this fork:
+
+| Hardware reported by upstream |
+| --- |
 | Raspberry Pi Compute Module 5 on Compute Module 5 IO Board |
 | Raspberry Pi Compute Module 5 Lite on [DeskPi Super6C](https://wiki.deskpi.com/super6c/) |
 | Raspberry Pi 5b with [RS-P11 for RS-P22 RPi5](https://wiki.52pi.com/index.php?title=EP-0234) |
 
-## What's not working?
+Upstream also reported that USB is available after Linux starts, but not in
+U-Boot. This fork has not re-tested that limitation. Booting images, flashing
+disks, changing firmware and cluster upgrades require separate approval; they
+are not part of the candidate-build pipeline.
 
-* Booting from USB: USB is only available once LINUX has booted up but not in U-Boot.
+## Attribution and license
 
-## How to use?
-
-Each release contains disk images and installer images for the Raspberry Pi 5 platforms.
-
-### Examples
-
-Initial:
-
-```bash
-# Raspberry Pi 5 / CM5
-xz -d metal-arm64-rpi5.raw.xz
-dd if=metal-arm64-rpi5.raw of=<disk> bs=4M status=progress
-```
-
-Upgrade:
-
-```bash
-# Raspberry Pi 5 / CM5
-talosctl upgrade \
-  --nodes <node IP> \
-  --image ghcr.io/talos-rpi5/installer:<version>-rpi5
-```
-
-## Building
-
-### Using GitHub Actions
-
-The CI workflow builds and publishes images automatically. It is triggered when you push a version tag:
-
-- **Push a tag** matching `v*.*.*` — this builds the Raspberry Pi 5 image and creates a GitHub Release:
-  ```bash
-  git tag v1.12.6
-  git push origin v1.12.6
-  ```
-
-### Local build
-
-If you'd like to make modifications, it is possible to create your own build.
-
-```bash
-# Full pipeline for Raspberry Pi 5
-make REGISTRY=ghcr.io REGISTRY_USERNAME=<username> pi5
-```
-
-Or step by step:
-
-```bash
-# Clone dependencies and apply patches
-make checkouts patches
-
-# Build the Linux Kernel (can take a while)
-make REGISTRY=ghcr.io REGISTRY_USERNAME=<username> kernel
-
-# Build the overlay (Pi5 only — Pi4 uses the stock siderolabs overlay)
-make REGISTRY=ghcr.io REGISTRY_USERNAME=<username> overlay
-
-# Build the installer and disk image
-make REGISTRY=ghcr.io REGISTRY_USERNAME=<username> installer
-```
-
-### Extensions support
-
-Talos [system extensions](https://www.talos.dev/latest/talos-guides/configuration/system-extensions/) can be baked into the installer image at build time.
-
-**Makefile variables:**
-
-```makefile
-EXTENSIONS ?=
-EXTENSION_ARGS = $(foreach ext,$(EXTENSIONS),--system-extension-image $(ext))
-```
-
-`EXTENSIONS` is a space-separated list of `image:tag@sha256:digest` references passed as a make variable at build time — no Makefile edits needed. Internally, the Makefile expands each entry into a `--system-extension-image` flag and passes them all to the Talos imager.
-
-**Adding extensions to the CI build:**
-
-Just add a new `EXTENSION_*` env var at the top of `.github/workflows/build.yaml` — the digest resolution step automatically loops through all vars matching that prefix:
-
-```yaml
-env:
-  EXTENSION_ISCSI_IMAGE: ghcr.io/siderolabs/iscsi-tools:v0.2.0
-  EXTENSION_UTIL_LINUX_IMAGE: ghcr.io/siderolabs/util-linux-tools:2.41.2
-  EXTENSION_MY_IMAGE: ghcr.io/siderolabs/my-extension:v1.0.0   # ← just add this
-```
-
-The workflow resolves the digest for each at build time and assembles the full `EXTENSIONS` string automatically.
-
-**Adding extensions for a local build:**
-
-```bash
-# Resolve the digest first
-DIGEST=$(crane digest ghcr.io/siderolabs/foo-extension:v1.0.0)
-
-make REGISTRY=ghcr.io REGISTRY_USERNAME=<username> \
-  EXTENSIONS="ghcr.io/siderolabs/foo-extension:v1.0.0@${DIGEST}" \
-  installer
-```
-
-Pass multiple extensions as a space-separated string inside the quotes.
-
-## License
-
-See [LICENSE](LICENSE).
+The original builder, carried patches and their authorship remain attributed to
+[johnlaur/talos-builder](https://github.com/johnlaur/talos-builder). Preserve patch
+origin headers when porting. See [LICENSE](LICENSE).

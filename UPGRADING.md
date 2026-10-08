@@ -1,4 +1,9 @@
 # Upgrading Talos
+> Historical upstream maintainer notes. This public fork uses
+> [the approved build plan](docs/build-plan.md) and the manual hosted candidate
+> workflow described in [README.md](README.md). Do not follow the local build,
+> cleanup, direct commit/push or live-upgrade procedure below for this fork.
+
 When a new version of Talos is released it may be necessary to adjust the patches we are applying to the upstream repositories.
 
 1. Make sure you're starting from a clean slate

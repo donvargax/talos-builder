@@ -3,13 +3,12 @@ PKG_COMMIT := 969f61c
 TALOS_VERSION := v1.13.2
 SBCOVERLAY_VERSION := v0.2.0
 
-PUSH ?= true
-REGISTRY ?= ghcr.io
-REGISTRY_USERNAME ?= talos-rpi5
-TAG ?= $(shell git describe --tags --exact-match)
+PUSH ?= false
+REGISTRY ?= localhost:5000
+REGISTRY_USERNAME ?= donvargax/talos-builder
+TAG ?= candidate-$(shell git rev-parse HEAD)
 
 SED ?= sed
-ASSET_TYPE ?= rpi_5
 CONFIG_TXT ?= dtparam=i2c_arm=on
 
 EXTENSIONS ?=
@@ -22,18 +21,35 @@ PKG_REPOSITORY := https://github.com/siderolabs/pkgs.git
 TALOS_REPOSITORY := https://github.com/siderolabs/talos.git
 SBCOVERLAY_REPOSITORY := https://github.com/siderolabs/sbc-raspberrypi
 
-CHECKOUTS_DIRECTORY := $(PWD)/checkouts
-PATCHES_DIRECTORY := $(PWD)/patches
+CHECKOUTS_DIRECTORY := $(CURDIR)/checkouts
+PATCHES_DIRECTORY := $(CURDIR)/patches
 
-PKGS_TAG ?= $(or ${TAG}, $(shell cd $(CHECKOUTS_DIRECTORY)/pkgs && git describe --tag --always --dirty --match v[0-9]\*))
-TALOS_TAG ?= $(or ${TAG}, $(shell cd $(CHECKOUTS_DIRECTORY)/talos && git describe --tag --always --dirty --match v[0-9]\*))
-SBCOVERLAY_TAG ?= $(shell cd $(CHECKOUTS_DIRECTORY)/sbc-raspberrypi && git describe --tag --always --dirty --match v[0-9]\*)
+PKGS_TAG = $(TAG)
+TALOS_TAG = $(TAG)
+SBCOVERLAY_TAG = $(TAG)
+
+.DEFAULT_GOAL := help
+.PHONY: check plan hosted-guard
+check:
+	python3 -m unittest discover -s tests -v
+	itos config check
+
+plan:
+	@python3 scripts/build_contract.py plan
+
+# Never run inherited build/publish recipes outside the controlled hosted job.
+hosted-guard:
+	@bash scripts/hosted-guard.sh "$(REGISTRY)" "$(REGISTRY_USERNAME)" "$(TAG)" "$(PUSH)"
+
+kernel overlay imager installer-base initramfs-kernel installer image pi5 checkouts-clean: | hosted-guard
 
 #
 # Help
 #
 .PHONY: help
 help:
+	@echo "check / plan    : Offline checks / print candidate plan (no build)"
+	@echo "Build targets are restricted to the manual hosted ARM64 candidate workflow."
 	@echo "checkouts        : Clone repositories required for the build"
 	@echo "patches          : Apply all patches for Raspberry Pi 5"
 	@echo "kernel           : Build kernel"
@@ -52,7 +68,7 @@ help:
 .PHONY: checkouts checkouts-clean
 checkouts:
 	git clone -c advice.detachedHead=false --single-branch --branch "$(PKG_VERSION)" "$(PKG_REPOSITORY)" "$(CHECKOUTS_DIRECTORY)/pkgs"
-	cd "$(CHECKOUTS_DIRECTORY)/pkgs" && git reset --hard "$(PKG_COMMIT)"
+	cd "$(CHECKOUTS_DIRECTORY)/pkgs" && git checkout --detach "$(PKG_COMMIT)"
 	git clone -c advice.detachedHead=false --single-branch --branch "$(TALOS_VERSION)" "$(TALOS_REPOSITORY)" "$(CHECKOUTS_DIRECTORY)/talos"
 	git clone -c advice.detachedHead=false --single-branch --branch "$(SBCOVERLAY_VERSION)" "$(SBCOVERLAY_REPOSITORY)" "$(CHECKOUTS_DIRECTORY)/sbc-raspberrypi"
 
@@ -99,7 +115,7 @@ patches: patches-pkgs patches-talos patches-sbc-raspberrypi patches-linux
 kernel:
 	cd "$(CHECKOUTS_DIRECTORY)/pkgs" && \
 		$(MAKE) \
-			REGISTRY=$(REGISTRY) USERNAME=$(REGISTRY_USERNAME) PUSH=$(PUSH) \
+			TAG=$(PKGS_TAG) REGISTRY=$(REGISTRY) USERNAME=$(REGISTRY_USERNAME) PUSH=$(PUSH) \
 			PLATFORM=linux/arm64 \
 			kernel
 
@@ -108,8 +124,7 @@ overlay:
 	@echo SBCOVERLAY_TAG = $(SBCOVERLAY_TAG)
 	cd "$(CHECKOUTS_DIRECTORY)/sbc-raspberrypi" && \
 		$(MAKE) \
-			REGISTRY=$(REGISTRY) USERNAME=$(REGISTRY_USERNAME) IMAGE_TAG=$(SBCOVERLAY_TAG) PUSH=$(PUSH) \
-			PKGS_PREFIX=$(REGISTRY)/$(REGISTRY_USERNAME) PKGS=$(PKGS_TAG) \
+			TAG=$(SBCOVERLAY_TAG) REGISTRY=$(REGISTRY) USERNAME=$(REGISTRY_USERNAME) IMAGE_TAG=$(SBCOVERLAY_TAG) PUSH=$(PUSH) \
 			INSTALLER_ARCH=arm64 PLATFORM=linux/arm64 \
 			sbc-raspberrypi
 
@@ -144,35 +159,33 @@ initramfs-kernel:
 installer:
 	cd "$(CHECKOUTS_DIRECTORY)/talos" && \
 		docker \
-			run --rm -t -v ./_out:/out -v /dev:/dev --privileged $(REGISTRY)/$(REGISTRY_USERNAME)/imager:$(TALOS_TAG) \
+			run --rm --network=host -v ./_out:/out -v /dev:/dev --privileged $(REGISTRY)/$(REGISTRY_USERNAME)/imager:$(TALOS_TAG) \
 			installer \
 			--arch arm64 \
 			--base-installer-image="$(REGISTRY)/$(REGISTRY_USERNAME)/installer-base:$(TALOS_TAG)" \
 			--overlay-name="rpi_5" \
 			--overlay-image="$(REGISTRY)/$(REGISTRY_USERNAME)/sbc-raspberrypi:$(SBCOVERLAY_TAG)" \
-			--overlay-option="configTxtAppend=$$CONFIG_TXT" \
+			--overlay-option="configTxtAppend=$(CONFIG_TXT)" \
 			$(EXTENSION_ARGS) \
 			$(EXTRA_KERNEL)
-		crane push \
-			./checkouts/talos/_out/installer-arm64.tar \
-			${REGISTRY}/${REGISTRY_USERNAME}/installer:${TALOS_TAG}-arm64-extensions
 
 .PHONY: image
 image:
 	cd "$(CHECKOUTS_DIRECTORY)/talos" && \
 		docker \
-			run --rm -t -v ./_out:/out -v /dev:/dev --privileged $(REGISTRY)/$(REGISTRY_USERNAME)/imager:$(TALOS_TAG) \
-			$(ASSET_TYPE) \
+			run --rm --network=host -v ./_out:/out -v /dev:/dev --privileged $(REGISTRY)/$(REGISTRY_USERNAME)/imager:$(TALOS_TAG) \
+			metal \
 			--arch arm64 \
 			--base-installer-image="$(REGISTRY)/$(REGISTRY_USERNAME)/installer-base:$(TALOS_TAG)" \
 			--overlay-name="rpi_5" \
 			--overlay-image="$(REGISTRY)/$(REGISTRY_USERNAME)/sbc-raspberrypi:$(SBCOVERLAY_TAG)" \
-			--overlay-option="configTxtAppend=$$CONFIG_TXT" \
+			--overlay-option="configTxtAppend=$(CONFIG_TXT)" \
 			$(EXTENSION_ARGS) \
 			$(EXTRA_KERNEL)
 
 .PHONY: pi5
-pi5: checkouts-clean checkouts patches kernel initramfs-kernel installer-base imager overlay installer image
+pi5:
+	bash scripts/candidate.sh build
 
 .PHONY: clean
 clean: checkouts-clean

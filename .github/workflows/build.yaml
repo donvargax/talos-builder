@@ -1,147 +1,53 @@
-on:
-  push:
-    tags:
-      - 'v*.*.*'
-
-env:
-  REGISTRY: ghcr.io
-  REGISTRY_USERNAME: ${{ github.repository_owner }}/talos-builder
-  # Extensions to bake into the installer image.
-  # Format: space-separated list of image:tag references (digests resolved at build time).
-  EXTENSION_ISCSI_IMAGE: ghcr.io/siderolabs/iscsi-tools:v0.2.0
-  EXTENSION_UTIL_LINUX_IMAGE: ghcr.io/siderolabs/util-linux-tools:2.41.2
-
-jobs:
-  build:
-    permissions:
-      contents: write
-      packages: write
-      attestations: write
-      id-token: write
-    runs-on: ubuntu-24.04-arm
-    steps:
-      - uses: actions/checkout@v4
-      - uses: imjasonh/setup-crane@v0.4
-        with:
-          version: v0.20.5
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Set up GitHub Actions bot user
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Extract Talos version from tag
-        id: talos-version
-        run: |
-          # Tag format: v1.11.6-rpi5, v1.11.5-cm5, etc.
-          # Extract the upstream Talos version (vMAJOR.MINOR.PATCH) from the tag.
-          TAG="${{ github.ref_name }}"
-          TALOS_VERSION=$(echo "$TAG" | grep -oE '^v[0-9]+\.[0-9]+\.[0-9]+')
-          echo "TALOS_VERSION=${TALOS_VERSION}" >> $GITHUB_ENV
-          echo "Resolved TALOS_VERSION=${TALOS_VERSION} from tag ${TAG}"
-
-      - name: Resolve extension image digests
-        run: |
-          EXTENSIONS=""
-          while IFS= read -r line; do
-            IMAGE="${line#*=}"
-            DIGEST=$(crane digest "$IMAGE")
-            EXTENSIONS="$EXTENSIONS $IMAGE@$DIGEST"
-          done < <(env | grep '^EXTENSION_')
-          echo "EXTENSIONS=${EXTENSIONS# }" >> $GITHUB_ENV
-
-      # ──────────────────────────────────────────────
-      # Raspberry Pi 5
-      # ──────────────────────────────────────────────
-
-      - name: "Pi5 — Prepare (checkouts & patches)"
-        run: make TALOS_VERSION=${{ env.TALOS_VERSION }} checkouts patches
-
-      - name: "Pi5 — Kernel"
-        run: make TALOS_VERSION=${{ env.TALOS_VERSION }} REGISTRY=${{ env.REGISTRY }} REGISTRY_USERNAME=${{ env.REGISTRY_USERNAME }} kernel
-
-      - name: "Pi5 — initramfs and kernel"
-        run: make TALOS_VERSION=${{ env.TALOS_VERSION }} REGISTRY=${{ env.REGISTRY }} REGISTRY_USERNAME=${{ env.REGISTRY_USERNAME }} initramfs-kernel
-
-      - name: "Pi5 — Installer base"
-        run: make TALOS_VERSION=${{ env.TALOS_VERSION }} REGISTRY=${{ env.REGISTRY }} REGISTRY_USERNAME=${{ env.REGISTRY_USERNAME }} installer-base
-
-      - name: "Pi5 — Imager"
-        run: make TALOS_VERSION=${{ env.TALOS_VERSION }} REGISTRY=${{ env.REGISTRY }} REGISTRY_USERNAME=${{ env.REGISTRY_USERNAME }} imager
-
-      - name: "Pi5 — Overlay"
-        run: make TALOS_VERSION=${{ env.TALOS_VERSION }} REGISTRY=${{ env.REGISTRY }} REGISTRY_USERNAME=${{ env.REGISTRY_USERNAME }} overlay
-
-      - name: "Pi5 — Build installer image (with extensions)"
-        run: |
-          make TALOS_VERSION=${{ env.TALOS_VERSION }} \
-            REGISTRY=${{ env.REGISTRY }} \
-            REGISTRY_USERNAME=${{ env.REGISTRY_USERNAME }} \
-            ASSET_TYPE=installer \
-            EXTENSIONS="${{ env.EXTENSIONS }}" \
-            image
-          crane push \
-            ./checkouts/talos/_out/installer-arm64.tar \
-            ${{ env.REGISTRY }}/${{ env.REGISTRY_USERNAME }}/installer:${{ github.ref_name }}-arm64-extensions
-
-      - name: "Pi5 — Build metal disk image"
-        run: |
-          make TALOS_VERSION=${{ env.TALOS_VERSION }} \
-            REGISTRY=${{ env.REGISTRY }} \
-            REGISTRY_USERNAME=${{ env.REGISTRY_USERNAME }} \
-            EXTENSIONS="${{ env.EXTENSIONS }}" \
-            image
-          mv ./checkouts/talos/_out/metal-arm64.raw.xz ./metal-arm64-rpi5.raw.xz
-
-      # ──────────────────────────────────────────────
-      # Release
-      # ──────────────────────────────────────────────
-
-      - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          INSTALLER_PI5="${{ env.REGISTRY }}/${{ env.REGISTRY_USERNAME }}/installer:${{ github.ref_name }}"
-          NOTES=$(cat <<EOF
-          > ⚠️ Experimental build, use at your own risk.
-
-          Patched Talos Linux for **Raspberry Pi 5** using Pi Foundation vendor kernel
-
-          ### Extensions included
-
-          - \`iscsi-tools\` ${{ env.EXTENSION_ISCSI_IMAGE }}
-          - \`util-linux-tools\` ${{ env.EXTENSION_UTIL_LINUX_IMAGE }}
-
-          ### Artifacts
-
-          | Platform | Disk image | Installer image |
-          |----------|-----------|----------------|
-          | **RPi 5 / CM5** | \`metal-arm64-rpi5.raw.xz\` | \`${INSTALLER_PI5}\` |
-
-          ### Fresh install
-
-          Download the disk image for your board and flash it:
-          \`\`\`bash
-          xz -d metal-arm64-rpi5.raw.xz
-          dd if=metal-arm64-rpi5.raw of=<disk> bs=4M status=progress
-          \`\`\`
-
-          ### Upgrade
-
-          \`\`\`bash
-          # Raspberry Pi 5
-          talosctl upgrade --nodes <NODE_IP> --image ${INSTALLER_PI5}
-
-          EOF
-          )
-          gh release create \
-            ${{ github.ref_name }} \
-            metal-arm64-rpi5.raw.xz \
-            --title "${{ github.ref_name }}" \
-            --notes "$NOTES"
+{
+  "name": "ARM64 candidate (manual only)",
+  "on": {"workflow_dispatch": {}},
+  "permissions": {"contents": "read"},
+  "concurrency": {"group": "arm64-candidate", "cancel-in-progress": false},
+  "jobs": {
+    "candidate": {
+      "if": "github.repository == 'donvargax/talos-builder' && github.ref == 'refs/heads/main'",
+      "runs-on": "ubuntu-24.04-arm",
+      "timeout-minutes": 180,
+      "env": {"ITOS_NO_UPDATE": "1", "ITOS_NO_UPDATE_NOTICE": "1"},
+      "steps": [
+        {
+          "name": "Checkout exact dispatch commit",
+          "uses": "actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5",
+          "with": {"ref": "${{ github.sha }}", "persist-credentials": false, "fetch-depth": 0}
+        },
+        {"name": "Install verified itos 6.5.1", "run": "bash scripts/install-itos.sh"},
+        {"name": "Offline preflight", "run": "make check"},
+        {"name": "Initialize evidence and local registry", "run": "bash scripts/candidate.sh prepare"},
+        {
+          "name": "Native ARM64 BuildKit, host-network local registry",
+          "uses": "docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435",
+          "with": {
+            "version": "v0.28.0",
+            "driver": "docker-container",
+            "driver-opts": "network=host\nimage=moby/buildkit:v0.23.2@sha256:ddd1ca44b21eda906e81ab14a3d467fa6c39cd73b9a39df1196210edcb8db59e",
+            "buildkitd-config-inline": "[registry.\"localhost:5000\"]\n  http = true\n",
+            "buildkitd-flags": ""
+          }
+        },
+        {"name": "Build committed candidate inputs", "run": "bash scripts/candidate.sh build"},
+        {
+          "name": "Collect provenance, hashes and failure diagnostics",
+          "if": "always()",
+          "run": "python3 scripts/build_contract.py collect"
+        },
+        {
+          "name": "Retain candidate evidence even on failure",
+          "if": "always()",
+          "uses": "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+          "with": {
+            "name": "pi5-candidate-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}",
+            "path": "_out/candidate/",
+            "if-no-files-found": "error",
+            "compression-level": 0,
+            "retention-days": 14
+          }
+        }
+      ]
+    }
+  }
+}

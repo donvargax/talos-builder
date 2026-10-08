@@ -1,2 +1,5 @@
 checkouts/
 *.env
+_out/
+.tools/
+__pycache__/
