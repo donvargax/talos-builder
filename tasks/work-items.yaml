@@ -23,7 +23,7 @@ items:
     phase: 1
     owner: null
     status: todo
-    depends_on: []
+    depends_on: [T-1]
     kind: task
     why: >
       User approved public GitHub-hosted builds toward Talos1.14.2 on2026-10-08. Read
@@ -51,3 +51,4 @@ items:
       first, uses itos commit/push, closes only on green CI, pushes closure and reports actual runs.
       Configure any temporary build assets under ignored paths and never stage downloaded source or
       binaries.
+    refs: [docs/build-plan.md]
