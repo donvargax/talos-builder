@@ -18,3 +18,35 @@
     inherited history outside commit verification. No compile or CI dispatch.
   done_when:
     - run: itos config check
+- id: T-2
+  type: ci
+  title: Add a controlled hosted ARM64 candidate workflow
+  why: >
+    User approved public GitHub-hosted builds toward Talos1.14.2 on2026-10-08. Read
+    docs/build-plan.md. First establish safe execution before porting: replace inherited version-tag
+    production release automation with explicit manual workflow_dispatch on ubuntu-24.04-arm; normal
+    pushes/PRs run only fast offline checks in ci.yml. Heavy builds must not run on local or
+    self-hosted machines, automatically on push/tag, or execute untrusted PR code with write
+    credentials. Build only the committed version/pins, not unchecked arbitrary ref input or
+    workflow-string interpolation. Set timeouts/concurrency and least-privilege permissions. Prefer
+    a runner-local registry for intermediates; if necessary use only this forks GHCR namespace and
+    immutable candidate tags, never upstream/official namespaces, latest tags, production releases,
+    or release tags. Keep metadata/artifacts/logs even when builds fail, and preserve
+    license/attribution. Implement make check as meaningful network/Docker/cluster-free tests for
+    workflow and build contracts plus YAML/shell syntax; add regression tests proving dangerous
+    triggers/publication/namespace behavior are refused or absent. make plan prints the candidate
+    build plan without executing any build or pushing. Provide raw image and installer artifact
+    capture with checksums/provenance on eventual successful builds; do not claim original1.13.2
+    inputs produce the desired1.14.2 yet. Do not dispatch heavy workflow until T-3 ports inputs.
+    Update README.md and docs/build-plan.md to avoid misleading legacy release instructions. Add
+    ci.watch provider github watching ci.yml only after that workflow exists so
+    commits/pushes/closure verify actual hosted checks. New code changes are in this public repo
+    only; no cluster/private configuration, disk or firmware commands. Ordinary failed lint/tests
+    are fixed without weakening gates; stop if scope or publication needs exceed this brief. T-1
+    bootstrap done; one implementing agent claims/pushes first, uses itos commit/push, closes only
+    on green CI, pushes closure and reports actual runs. Configure any temporary build assets under
+    ignored paths and never stage downloaded source or binaries.
+  done_when:
+    - run: make check
+    - run: make plan
+    - run: itos config check
