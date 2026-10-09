@@ -3,6 +3,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -86,6 +87,13 @@ class WorkflowTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             contract.validate_workflow(data, True)
 
+    def test_empty_buildkit_flags_cannot_enable_action_default_entitlements(self):
+        data = workflow()
+        step = next(step for step in data["jobs"]["candidate"]["steps"] if step.get("uses", "").startswith("docker/"))
+        step["with"]["buildkitd-flags"] = ""
+        with self.assertRaisesRegex(ValueError, "entitlements"):
+            contract.validate_workflow(data, True)
+
     def test_shell_and_python_syntax_without_execution(self):
         for file in (ROOT / "scripts").glob("*.sh"):
             subprocess.run(["bash", "-n", str(file)], check=True)
@@ -150,6 +158,36 @@ class HostedGuardTests(unittest.TestCase):
 
 
 class PlanAndEvidenceTests(unittest.TestCase):
+    def test_failed_phase_preserves_log_and_stops_before_following_phases(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            scripts = root / "scripts"
+            scripts.mkdir()
+            for name in ("candidate.sh", "hosted-guard.sh"):
+                shutil.copyfile(ROOT / "scripts" / name, scripts / name)
+            (scripts / "build_contract.py").write_text("# Offline provenance fixture\n")
+            dest = root / "_out/candidate"
+            (dest / "logs").mkdir(parents=True)
+            (dest / "provenance.json").write_text("{}")
+            tools = root / "tools"
+            tools.mkdir()
+            fake_git = tools / "git"
+            fake_git.write_text("#!/bin/sh\nif [ \"$1\" = rev-parse ]; then printf '%s\\n' " + "a" * 40 + "; fi\n")
+            fake_git.chmod(0o755)
+            fake_make = tools / "make"
+            fake_make.write_text("#!/bin/sh\necho fixture-phase-$1\nif [ \"$1\" = kernel ]; then echo fixture-error >&2; exit 23; fi\n")
+            fake_make.chmod(0o755)
+            env = dict(os.environ, PATH=str(tools) + os.pathsep + os.environ["PATH"], GITHUB_ACTIONS="true",
+                       RUNNER_ENVIRONMENT="github-hosted", RUNNER_OS="Linux", RUNNER_ARCH="ARM64",
+                       GITHUB_EVENT_NAME="workflow_dispatch", GITHUB_REPOSITORY=contract.NAMESPACE,
+                       GITHUB_REF="refs/heads/main", GITHUB_SHA="a" * 40, GITHUB_RUN_ID="123", GITHUB_RUN_ATTEMPT="1")
+            result = subprocess.run(["bash", str(scripts / "candidate.sh"), "build"], env=env,
+                                    capture_output=True, text=True)
+            self.assertEqual(result.returncode, 23)
+            self.assertIn("fixture-error", (dest / "logs/kernel.log").read_text())
+            self.assertTrue((dest / "logs/checkouts.log").is_file())
+            self.assertFalse((dest / "logs/initramfs-kernel.log").exists())
+
     def test_plan_is_offline_and_matches_committed_versions(self):
         with patch.object(contract.subprocess, "run", side_effect=AssertionError("plan must not execute commands")):
             with patch("builtins.print") as output:

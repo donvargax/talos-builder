@@ -26,7 +26,7 @@
             "driver": "docker-container",
             "driver-opts": "network=host\nimage=moby/buildkit:v0.23.2@sha256:ddd1ca44b21eda906e81ab14a3d467fa6c39cd73b9a39df1196210edcb8db59e",
             "buildkitd-config-inline": "[registry.\"localhost:5000\"]\n  http = true\n",
-            "buildkitd-flags": ""
+            "buildkitd-flags": "--debug=false"
           }
         },
         {"name": "Build committed candidate inputs", "run": "bash scripts/candidate.sh build"},

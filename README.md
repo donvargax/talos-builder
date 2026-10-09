@@ -46,7 +46,9 @@ Do not dispatch it during T-2. Tags and ordinary pushes never start image builds
 Kernel, overlay, installer-base and imager intermediates stay in a registry bound
 to the ephemeral runner's loopback address. Native ARM64 BuildKit and the imager
 use host networking to reach `localhost:5000`; BuildKit explicitly allows HTTP
-only for this local registry. The namespace is `donvargax/talos-builder`, and
+only for this local registry. A nonempty neutral daemon flag disables the
+Buildx action's default insecure entitlements. The namespace is
+`donvargax/talos-builder`, and
 tags include the full commit SHA, run ID and attempt. `PUSH=true` in this job means
 push to that local registry, **not GHCR**. No public image uploads, GitHub releases,
 production tags or `latest` tags are created. Checkout does not retain its token;

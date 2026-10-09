@@ -79,7 +79,9 @@ def validate_workflow(workflow, heavy):
         require("network=host" in buildx["driver-opts"], "builder cannot reach local registry")
         require(re.search(r"image=moby/buildkit:v[0-9.]+@sha256:[0-9a-f]{64}", buildx["driver-opts"]), "unpinned BuildKit")
         require(buildx["buildkitd-config-inline"] == '[registry."localhost:5000"]\n  http = true\n', "local registry HTTP config missing")
-        require(buildx["buildkitd-flags"] == "", "unneeded entitlements")
+        # An empty action input silently enables security.insecure/network.host.
+        # A nonempty neutral flag replaces those action defaults completely.
+        require(buildx["buildkitd-flags"] == "--debug=false", "unneeded default entitlements")
     else:
         require("make check plan" in runs, "offline checks missing")
         require("itos verify 9e8a06ccfb88da4f93fcc3fa34aebdfdfa53c053 HEAD" in runs, "commit verification missing")
