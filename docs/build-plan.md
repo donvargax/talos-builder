@@ -115,3 +115,16 @@ the full matched source/tool/archive inputs before the first candidate run. The
 old tag/release, local compilation, disk-flashing and upgrade instructions are
 not the procedure for this fork. No image build or hardware result is claimed
 by this workflow definition.
+
+### T-2 handoff, 2026-10-08
+
+T-2 is done and its closure is pushed. The final implementation commit
+`6a2dd44f16ff43b67485a159df6826cc2bad99d2` passed
+[hosted offline CI](https://github.com/donvargax/talos-builder/actions/runs/37862603798).
+That commit disables implicit BuildKit entitlements and adds failure-log/exit-code
+regression coverage. No manual candidate workflow or image build ran.
+
+T-3 remains todo and unowned for a separate session. Start with `itos go` and
+`itos work show T-3`; keep real builds on hosted ARM64 runners. Do not treat the
+still-inherited 1.13.2 pins as a completed 1.14.2 port. The original infrastructure
+session is returning to its remaining discussions, not starting T-3 here.
