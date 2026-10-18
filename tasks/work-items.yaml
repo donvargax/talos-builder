@@ -88,6 +88,6 @@ items:
     title: Upgrade itos from 6.5.1 to 8.5.0
     phase: 1
     owner: null
-    status: doing
+    status: done
     depends_on: []
     kind: task
