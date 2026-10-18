@@ -47,6 +47,10 @@ items:
       resolved digests (from BuildKit metadata or the local registry) in provenance.json would make
       a candidate auditable and reproducible without trusting mutable tags. Found during T-3.
     refs: [docs/build-evidence.md]
+    deferred: >
+      Parked with the vendor-kernel fork by q-1 (2026-10-18): the cluster moves to the official
+      Talos rpi_5 image. Resume only if the official image fails on this hardware and the fork is
+      needed as the fallback.
   - id: pi5-hardware-test
     title: Hardware test of the Talos 1.14.2 Pi 5 candidate
     phase: 1
@@ -60,6 +64,10 @@ items:
       Needs separate approval, recovery material and an etcd snapshot; no flashing of the live SD
       card. See docs/build-evidence.md.
     refs: [docs/build-evidence.md, docs/build-plan.md]
+    deferred: >
+      Parked with the vendor-kernel fork by q-1 (2026-10-18): the cluster moves to the official
+      Talos rpi_5 image. Resume only if the official image fails on this hardware and the fork is
+      needed as the fallback.
   - id: pi5-intermediate-minors
     title: Pi 5 vendor-kernel candidates for Talos 1.12 and 1.13
     phase: 1
@@ -72,6 +80,10 @@ items:
       jump straight to 1.14.2. Each intermediate stage may need its own Pi-compatible vendor-kernel
       candidate built and recorded the way T-3 did for 1.14.2.
     refs: [docs/build-plan.md]
+    deferred: >
+      Parked with the vendor-kernel fork by q-1 (2026-10-18): the cluster moves to the official
+      Talos rpi_5 image. Resume only if the official image fails on this hardware and the fork is
+      needed as the fallback.
   - id: actions-node24
     title: Move pinned workflow actions to Node 24 releases
     phase: 1
@@ -84,6 +96,10 @@ items:
       docker/setup-buildx-action at the pinned commits target the deprecated Node.js 20 and are
       being forced onto Node 24. Pin newer commits of each, keeping the commit-pin contract tests.
     refs: [.github/workflows/build.yaml, .github/workflows/ci.yml]
+    deferred: >
+      Parked with the vendor-kernel fork by q-1 (2026-10-18): the cluster moves to the official
+      Talos rpi_5 image. Resume only if the official image fails on this hardware and the fork is
+      needed as the fallback.
   - id: T-4
     title: Upgrade itos from 6.5.1 to 8.5.0
     phase: 1
