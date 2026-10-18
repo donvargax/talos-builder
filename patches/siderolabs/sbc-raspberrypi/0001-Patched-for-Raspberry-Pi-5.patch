@@ -1,16 +1,30 @@
-From 29e731fce087b21e3324005336539f9c92de242a Mon Sep 17 00:00:00 2001
-From: local-build <local@build>
-Date: Wed, 8 Apr 2026 12:19:06 -0500
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Jorge Vargas <yorch.veintemil+github@gmail.com>
+Date: Sun, 18 Oct 2026 03:05:33 -0700
 Subject: [PATCH] Patched for Raspberry Pi 5
 
+Build the overlay's Raspberry Pi device trees from the same vendor kernel
+commit as the Talos kernel: raspberrypi/linux stable_20260911, commit
+cff533aec2fa601846766b32ff57204e0a61bed7 (6.18.50), fetched by commit with
+its archive SHA-256/SHA-512.
+
+Skip the overlay's device-tree patches. They adapt vendor device trees to
+mainline drivers (RP1 nexus node, RP1 Ethernet, bcm2712 DMA removal and
+similar), while this kernel carries the matching vendor drivers.
+
+Drop gpu_mem=32 and hdmi_safe from the Pi 5 config.txt, as the 1.13 builder
+did.
+
+Rebased from the "Patched for Raspberry Pi 5" patch of
+johnlaur/talos-builder.
 ---
  Pkgfile                            |  8 ++++----
- artifacts/dtb/raspberrypi/pkg.yaml | 11 ++++++-----
+ artifacts/dtb/raspberrypi/pkg.yaml | 13 ++++++++-----
  installers/rpi_5/src/config.txt    |  6 ------
- 3 files changed, 10 insertions(+), 15 deletions(-)
+ 3 files changed, 12 insertions(+), 15 deletions(-)
 
 diff --git a/Pkgfile b/Pkgfile
-index edcb6dd..e2eb864 100644
+index 5e2c539..ea22f9f 100644
 --- a/Pkgfile
 +++ b/Pkgfile
 @@ -13,10 +13,10 @@ vars:
@@ -18,18 +32,18 @@ index edcb6dd..e2eb864 100644
    uboot_sha512: b1f988a497c77da60faf89ed33034e9ae58c4cd7f208e5ce451f1372e13540a66289bee4f08ca2f68f105d73f1ceae058b1f713db549edbcc885d9c66bdc4f8b
  
 -  # renovate: datasource=github-tags depName=raspberrypi/linux
--  raspberrypi_kernel_version: stable_20250428
--  raspberrypi_kernel_sha256: c95906cfbc7808de5860c6d86537bea22e3501f600a5209de59a86cb436886f6
--  raspberrypi_kernel_sha512: 0ed5d490c491e590b5980dccf6fcac0dd3c47accbfacd40d91507c12801cff34fa6a1c68991c8a6c57bb259c909121414766f35a0b11c4bd5d62c3e11d710839
-+  # rpi-6.18.y branch, commit a72a0085aeac (2026-05-13), kernel 6.18.29
-+  raspberrypi_kernel_version: a72a0085aeac23ac8aa76c90c476e20626046ea7
-+  raspberrypi_kernel_sha256: 88c2c60538e4c79d59d5aaeed8925cf9a12ec4550345c71d1458984f3942eb94
-+  raspberrypi_kernel_sha512: 00277666941c8bd3d147e12d963c936681d66258c8767179f4052fa49bc9860df0bfc6535d954dae46e4e84ea1de01010c916123f3211b0c2e1f1ebe9e7f9b91
+-  raspberrypi_kernel_version: stable_20260724
+-  raspberrypi_kernel_sha256: ed379d946780441248e5636a41d56fee11161f474025d4216a9fe037daef1b25
+-  raspberrypi_kernel_sha512: b70147da8eae0a4f6b2f64ad0fc6ab1dd9a415de944646000defb7e8a418c5cba4d6a0727006721e536f0cd6f3c4959c4d921551b8eed8e3b49aab7f1f186d27
++  # rpi-6.18.y branch, commit cff533aec2fa (2026-09-10), kernel 6.18.50, tag stable_20260911
++  raspberrypi_kernel_version: cff533aec2fa601846766b32ff57204e0a61bed7
++  raspberrypi_kernel_sha256: 6c58de91ade97d7cd9176e408f05c9d134cda64dba95a87b7af976bf26c0c0bd
++  raspberrypi_kernel_sha512: 6f491c45247df1fef7481811c16975fd3ff75d89497e3b748d5f52fa9e28d9cb5d6f10b3ffa30265289d6599ba2d252cd486ca19e1ea94d24291684f6c14aef6
  
    # renovate: datasource=github-tags depName=revolutionpi/linux
    revpi_kernel_version: v6.6.46-rt39-revpi7
 diff --git a/artifacts/dtb/raspberrypi/pkg.yaml b/artifacts/dtb/raspberrypi/pkg.yaml
-index e64cf3e..4e75c83 100644
+index e64cf3e..b498351 100644
 --- a/artifacts/dtb/raspberrypi/pkg.yaml
 +++ b/artifacts/dtb/raspberrypi/pkg.yaml
 @@ -6,7 +6,7 @@ dependencies:
@@ -41,7 +55,7 @@ index e64cf3e..4e75c83 100644
          destination: raspberrypi-linux.tar.gz
          sha256: "{{ .raspberrypi_kernel_sha256 }}"
          sha512: "{{ .raspberrypi_kernel_sha512 }}"
-@@ -15,10 +15,11 @@ steps:
+@@ -15,10 +15,13 @@ steps:
          tar xf raspberrypi-linux.tar.gz --strip-components=1
          rm raspberrypi-linux.tar.gz
  
@@ -49,7 +63,9 @@ index e64cf3e..4e75c83 100644
 -          echo "Applying patch $patch"
 -          patch -p1 < $patch || (echo "Failed to apply patch $patch" && exit 1)
 -        done
-+        # Patches are for upstream/mainline kernel compatibility; skip when using RPi kernel
++        # These patches adapt vendor device trees to mainline drivers. The
++        # vendor kernel ships the matching vendor drivers, so use its device
++        # trees unmodified.
 +        # for patch in $(find /pkg/patches -type f -name "*.patch" | sort); do
 +        #   echo "Applying patch $patch"
 +        #   patch -p1 < $patch || (echo "Failed to apply patch $patch" && exit 1)
@@ -72,6 +88,3 @@ index 9bef001..68d995c 100644
  # Load U-Boot.
  kernel=u-boot.bin
  # Forces the kernel loading system to assume a 64-bit kernel.
--- 
-2.50.1 (Apple Git-155)
-

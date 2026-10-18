@@ -98,9 +98,54 @@ def pins():
     return result
 
 
+CHECKOUT_PINS = {"pkgs": "PKG_COMMIT", "talos": "TALOS_COMMIT", "sbc-raspberrypi": "SBCOVERLAY_COMMIT"}
+VENDOR_PATCHES = ("patches/siderolabs/pkgs/0001-Patched-for-Raspberry-Pi-5.patch",
+                  "patches/siderolabs/sbc-raspberrypi/0001-Patched-for-Raspberry-Pi-5.patch")
+
+
+def vendor_kernel_pins(path):
+    """Vendor kernel commit and archive hashes that a patch adds, by key."""
+    found = {}
+    for line in (ROOT / path).read_text().splitlines():
+        match = re.fullmatch(r"\+\s+(linux|raspberrypi_kernel)_(version|sha256|sha512):\s*(\S+)", line)
+        if match:
+            found[match[2]] = match[3]
+    return found
+
+
+def verify_inputs():
+    """Offline: committed pins are full commits and both vendor-kernel users agree."""
+    values = pins()
+    require(values.get("TALOS_VERSION") == "v1.14.2", "TALOS_VERSION must be v1.14.2")
+    for key, value in values.items():
+        if key.endswith("_COMMIT"):
+            require(re.fullmatch(r"[0-9a-f]{40}", value), f"{key} must be a full commit SHA")
+    kernels = [vendor_kernel_pins(path) for path in VENDOR_PATCHES]
+    for kernel in kernels:
+        require(kernel.get("version") == values["RPI_KERNEL_COMMIT"], "patch vendor kernel differs from RPI_KERNEL_COMMIT")
+        require(re.fullmatch(r"[0-9a-f]{64}", kernel.get("sha256", "")), "vendor kernel sha256 missing")
+        require(re.fullmatch(r"[0-9a-f]{128}", kernel.get("sha512", "")), "vendor kernel sha512 missing")
+    require(kernels[0] == kernels[1], "kernel and device trees must use the same vendor archive")
+
+
+def verify_checkouts():
+    """After cloning: each checkout is the pinned commit and names the pinned pkgs/tools."""
+    verify_inputs()
+    values = pins()
+    for name, key in CHECKOUT_PINS.items():
+        head = command(["git", "-C", str(ROOT / "checkouts" / name), "rev-parse", "HEAD"])
+        require(head == values[key], f"checkouts/{name} is {head}, expected {key}={values[key]}")
+    talos = (ROOT / "checkouts/talos/Makefile").read_text()
+    require(re.search(rf"^PKGS \?= {re.escape(values['TALOS_PKGS_VERSION'])}$", talos, re.M), "Talos names other pkgs")
+    require(re.search(rf"^TOOLS \?= {re.escape(values['TOOLS_VERSION'])}$", talos, re.M), "Talos names other tools")
+    pkgfile = (ROOT / "checkouts/pkgs/Pkgfile").read_text()
+    require(re.search(rf"^\s+TOOLS_REV: {re.escape(values['TOOLS_VERSION'])}$", pkgfile, re.M), "pkgs names other tools")
+    print("Checkouts match the committed pins.")
+
+
 def plan():
     print("Manual hosted ARM64 candidate only; NOT a verified boot or upgrade.")
-    print("Committed inputs (T-3 must port/verify these before dispatch):")
+    print("Committed inputs (evidence: docs/build-evidence.md):")
     for key, value in sorted(pins().items()):
         print(f"  {key}={value}")
     print(f"Intermediates: {REGISTRY}/{NAMESPACE}; no public registry uploads.")
@@ -193,11 +238,15 @@ def collect(require_images=False):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("plan", "provenance", "collect"))
+    parser.add_argument("command", choices=("plan", "provenance", "collect", "verify-inputs", "verify-checkouts"))
     parser.add_argument("--require-images", action="store_true")
     args = parser.parse_args()
     if args.command == "plan":
         plan()
+    elif args.command == "verify-inputs":
+        verify_inputs()
+    elif args.command == "verify-checkouts":
+        verify_checkouts()
     elif args.command == "provenance":
         provenance()
     else:

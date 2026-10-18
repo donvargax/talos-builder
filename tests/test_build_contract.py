@@ -247,5 +247,70 @@ class PlanAndEvidenceTests(unittest.TestCase):
                     self.assertEqual(digest, hashlib.sha256((dest / name).read_bytes()).hexdigest())
 
 
+class PinnedInputTests(unittest.TestCase):
+    def test_committed_inputs_are_full_commits_and_one_vendor_kernel(self):
+        contract.verify_inputs()
+        values = contract.pins()
+        self.assertEqual(values["TALOS_VERSION"], "v1.14.2")
+        self.assertEqual(values["TALOS_PKGS_VERSION"], "v1.14.0-37-g6c312e4")
+        self.assertEqual(values["TOOLS_VERSION"], "v1.14.0-8-g9776960")
+        for path in contract.VENDOR_PATCHES:
+            self.assertEqual(contract.vendor_kernel_pins(path)["version"], values["RPI_KERNEL_COMMIT"])
+
+    def fixture_root(self, temp):
+        root = Path(temp)
+        (root / "Makefile").write_text((ROOT / "Makefile").read_text())
+        for path in contract.VENDOR_PATCHES:
+            (root / path).parent.mkdir(parents=True, exist_ok=True)
+            (root / path).write_text((ROOT / path).read_text())
+        return root
+
+    def test_mismatched_device_tree_kernel_or_short_pin_is_refused(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = self.fixture_root(temp)
+            sbc = root / contract.VENDOR_PATCHES[1]
+            text = sbc.read_text()
+            digest = contract.vendor_kernel_pins(contract.VENDOR_PATCHES[1])["sha256"]
+            sbc.write_text(text.replace(digest, "0" * 64))
+            with patch.object(contract, "ROOT", root), self.assertRaisesRegex(ValueError, "same vendor archive"):
+                contract.verify_inputs()
+            sbc.write_text(text)
+            makefile = root / "Makefile"
+            makefile.write_text(makefile.read_text().replace(contract.pins()["PKG_COMMIT"], "6c312e4"))
+            with patch.object(contract, "ROOT", root), self.assertRaisesRegex(ValueError, "full commit"):
+                contract.verify_inputs()
+
+    def test_checkouts_must_be_the_pinned_commits_naming_the_pinned_pkgs_and_tools(self):
+        values = contract.pins()
+        with tempfile.TemporaryDirectory() as temp:
+            root = self.fixture_root(temp)
+            (root / "checkouts/talos").mkdir(parents=True)
+            (root / "checkouts/pkgs").mkdir(parents=True)
+            (root / "checkouts/talos/Makefile").write_text(
+                f"TOOLS ?= {values['TOOLS_VERSION']}\nPKGS ?= {values['TALOS_PKGS_VERSION']}\n")
+            (root / "checkouts/pkgs/Pkgfile").write_text(f"vars:\n  TOOLS_REV: {values['TOOLS_VERSION']}\n")
+            heads = {name: values[key] for name, key in contract.CHECKOUT_PINS.items()}
+            fake = lambda args: heads[Path(args[2]).name]
+            with patch.object(contract, "ROOT", root), patch.object(contract, "command", side_effect=fake):
+                contract.verify_checkouts()
+                heads["talos"] = "b" * 40
+                with self.assertRaisesRegex(ValueError, "checkouts/talos"):
+                    contract.verify_checkouts()
+                heads["talos"] = values["TALOS_COMMIT"]
+                (root / "checkouts/pkgs/Pkgfile").write_text("vars:\n  TOOLS_REV: v1.13.0\n")
+                with self.assertRaisesRegex(ValueError, "pkgs names other tools"):
+                    contract.verify_checkouts()
+
+    def test_make_checks_checkouts_and_drops_only_listed_vendor_duplicates(self):
+        makefile = (ROOT / "Makefile").read_text()
+        recipe = makefile[makefile.index("\ncheckouts:"):makefile.index("\ncheckouts-clean:")]
+        self.assertIn("python3 scripts/build_contract.py verify-checkouts", recipe)
+        linux = makefile[makefile.index("\npatches-linux:"):makefile.index("\npatches: ")]
+        self.assertIn("rm -v -- $(PKGS_KERNEL_PATCHES_IN_VENDOR)", linux)
+        self.assertNotIn("rm -f", linux)
+        self.assertNotIn("SED", makefile)
+        self.assertFalse((ROOT / "patches/linux").exists())
+
+
 if __name__ == "__main__":
     unittest.main()

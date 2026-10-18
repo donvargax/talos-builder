@@ -101,15 +101,23 @@ update_comment() {
 }
 
 echo "Updating $PKGS_PATCH..."
-update_field "$PKGS_PATCH" "linux_version" "$SHORT_SHA"
+update_field "$PKGS_PATCH" "linux_version" "$FULL_SHA"
 update_field "$PKGS_PATCH" "linux_sha256" "$SHA256"
 update_field "$PKGS_PATCH" "linux_sha512" "$SHA512"
 update_comment "$PKGS_PATCH"
 
 echo "Updating $SBC_PATCH..."
-update_field "$SBC_PATCH" "raspberrypi_kernel_version" "$SHORT_SHA"
+update_field "$SBC_PATCH" "raspberrypi_kernel_version" "$FULL_SHA"
 update_field "$SBC_PATCH" "raspberrypi_kernel_sha256" "$SHA256"
 update_field "$SBC_PATCH" "raspberrypi_kernel_sha512" "$SHA512"
 update_comment "$SBC_PATCH"
 
-echo "Done."
+MAKEFILE="${REPO_ROOT}/Makefile"
+echo "Updating $MAKEFILE..."
+REF="$REF" FULL_SHA="$FULL_SHA" perl -i -pe '
+    s/^(RPI_KERNEL_VERSION := ).*/$1$ENV{REF}/;
+    s/^(RPI_KERNEL_COMMIT := ).*/$1$ENV{FULL_SHA}/;
+' "$MAKEFILE"
+
+echo "Done. Re-run patch preflight, rebase the kernel config and module list,"
+echo "and record the evidence in docs/build-evidence.md before dispatching."
