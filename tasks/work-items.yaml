@@ -101,3 +101,15 @@ items:
       jump straight to 1.14.2. Each intermediate stage may need its own Pi-compatible vendor-kernel
       candidate built and recorded the way T-3 did for 1.14.2.
     refs: [docs/build-plan.md]
+  - id: actions-node24
+    title: Move pinned workflow actions to Node 24 releases
+    phase: 1
+    owner: null
+    status: todo
+    depends_on: []
+    kind: idea
+    why: >
+      Candidate run 39125900949 warned that actions/checkout, actions/upload-artifact and
+      docker/setup-buildx-action at the pinned commits target the deprecated Node.js 20 and are
+      being forced onto Node 24. Pin newer commits of each, keeping the commit-pin contract tests.
+    refs: [.github/workflows/build.yaml, .github/workflows/ci.yml]
