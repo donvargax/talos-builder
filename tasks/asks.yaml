@@ -1,0 +1,5 @@
+# The questions to the person the work is for, written by itos decision (itos help decision).
+questions:
+  - id: q-1
+    item: "pi5-hardware-test"
+    question: "Which Pi 5 image goes into the hardware test: (a, recommended) both, our vendor-kernel 1.14.2 candidate and the official 1.14.2 rpi_5 image, under the same Ethernet/etcd load; (b) only the official image, dropping the vendor-kernel fork; (c) only our candidate. sbc-raspberrypi#91 (open, last 2026-10-17) and #82 show the macb TX stall on both kernels: the vendor kernel has the EEE PHY fix (#7270) the official lacks, the official has the 1 s TX watchdog (pkgs 0003) ours lacks and recovers in about 1 s against 5 s. Stalls continue on official 1.14.1; nobody reports 1.14.2. Reported mitigation on either kernel: SG/TSO/GSO off and BQL limit_min 65536."
