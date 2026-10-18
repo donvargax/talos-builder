@@ -76,3 +76,16 @@ items:
       resolved digests (from BuildKit metadata or the local registry) in provenance.json would make
       a candidate auditable and reproducible without trusting mutable tags. Found during T-3.
     refs: [docs/build-evidence.md]
+  - id: pi5-hardware-test
+    title: Hardware test of the Talos 1.14.2 Pi 5 candidate
+    phase: 1
+    owner: null
+    status: todo
+    depends_on: [T-3]
+    kind: idea
+    why: >
+      T-3 produced a compile-only candidate. Boot, cold restart, Ethernet/etcd traffic under load,
+      USB XFS volume and SD boot medium preservation, and the U-Boot 2026.01 change are untested.
+      Needs separate approval, recovery material and an etcd snapshot; no flashing of the live SD
+      card. See docs/build-evidence.md.
+    refs: [docs/build-evidence.md, docs/build-plan.md]
