@@ -88,3 +88,16 @@
     - run: grep -Eq '^TALOS_VERSION[[:space:]]*:?=[[:space:]]*v1\.14\.2[[:space:]]*$' Makefile
     - run: test -s docs/build-evidence.md
     - run: itos config check
+- id: T-4
+  type: chore
+  title: Upgrade itos from 6.5.1 to 8.5.0
+  why: >
+    User approved 2026-10-18 moving from itos 6.5.1 to 8.5.0, run between agents after T-3. itos
+    upgrade edits the pin and the AGENTS.md block; the CI installer scripts/install-itos.sh keeps
+    its own version and checksums.txt SHA-256, so it moves with the pin, and its test reads the pin
+    from itos.yaml instead of repeating the version. Prose naming 6.5.1 as the current tool moves
+    too; historical records of runs made with 6.5.1 stay.
+  done_when:
+    - run: make check
+    - run: itos version --check
+    - run: itos config check
