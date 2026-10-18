@@ -63,3 +63,16 @@ items:
       staged files, pushed-head fast CI green and actual candidate build green before closure, then
       push closure. Offline commit checks do not require live GitHub or cluster access.
     refs: [docs/build-plan.md]
+  - id: image-digests
+    title: Record digests of tag-pulled images in candidate provenance
+    phase: 1
+    owner: null
+    status: todo
+    depends_on: []
+    kind: idea
+    why: >
+      The candidate pins every git source to a full commit, but the build still pulls
+      ghcr.io/siderolabs tools, pkgs, bldr and the overlay toolchain images by tag. Recording the
+      resolved digests (from BuildKit metadata or the local registry) in provenance.json would make
+      a candidate auditable and reproducible without trusting mutable tags. Found during T-3.
+    refs: [docs/build-evidence.md]
