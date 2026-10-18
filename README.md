@@ -3,14 +3,18 @@
 This public fork of [johnlaur/talos-builder](https://github.com/johnlaur/talos-builder)
 prepares custom Talos Linux candidates for Raspberry Pi 5 using the
 [Raspberry Pi vendor kernel](https://github.com/raspberrypi/linux) and matching
-device trees. The approved target is Talos **1.14.2**. The committed build inputs
-are still the inherited **1.13.2** baseline; T-3 must port and verify them before
-any candidate build is dispatched.
+device trees. The committed inputs target Talos **1.14.2**: Talos, pkgs, tools
+and the `sbc-raspberrypi` v0.2.2 overlay are pinned to full commits, and the
+kernel and Pi 5 device trees both come from Raspberry Pi's `stable_20260911`
+vendor kernel (Linux 6.18.50). [Build evidence](docs/build-evidence.md) records
+how each pin was verified, what happened to each carried patch, and every
+hosted candidate run.
 
-No candidate has been compiled or hardware-tested by this workflow change.
-A green offline check, or even a later successful compile, does not establish
-boot compatibility, upgrade safety, Ethernet stability, or preservation of data.
-See [the approved build plan](docs/build-plan.md) for scope and work order.
+No candidate has been hardware-tested. A green offline check or a successful
+hosted compile does not establish boot compatibility, upgrade safety, Ethernet
+stability or preservation of data, and does not authorize skipping the 1.12
+and 1.13 upgrade stages. See [the approved build plan](docs/build-plan.md) for
+scope and work order.
 
 ## Safe local checks
 
@@ -25,8 +29,11 @@ make -n plan
 `make check` runs stdlib `unittest` contract tests, parses workflows, checks shell
 and Python syntax, and validates itos configuration/task data. It does not build,
 download dependencies, invoke Docker, or contact a cluster. `make plan` prints
-the committed inputs and phases without executing them. Build targets refuse
-execution outside the controlled hosted ARM64 job.
+the committed inputs and phases without executing them. `make check` also
+verifies that every source pin is a full commit and that the kernel and device
+trees share one vendor archive. `make checkouts` refuses checkouts that are not
+those commits. Build targets refuse execution outside the controlled hosted
+ARM64 job.
 
 Pushes and pull requests run only these fast checks and managed-commit
 verification in [ci.yml](.github/workflows/ci.yml). CI installs itos 6.5.1 only
@@ -37,11 +44,11 @@ are used. itos watches this workflow for the exact pushed SHA.
 ## Manual hosted candidate pipeline
 
 [build.yaml](.github/workflows/build.yaml) accepts only `workflow_dispatch`, with
-no version/ref inputs. After T-3 ports the inputs and the pushed commit's fast CI
-passes, an authorized maintainer may select the workflow's **Run workflow** action
-on `main`. The job checks out the dispatch SHA, runs on GitHub-hosted
+no version/ref inputs. Once a pushed `main` commit's fast CI passes, an
+authorized maintainer may select the workflow's **Run workflow** action on
+`main`. The job checks out the dispatch SHA, runs on GitHub-hosted
 `ubuntu-24.04-arm`, and has a 180-minute timeout and one-at-a-time concurrency.
-Do not dispatch it during T-2. Tags and ordinary pushes never start image builds.
+Tags and ordinary pushes never start image builds.
 
 Kernel, overlay, installer-base and imager intermediates stay in a registry bound
 to the ephemeral runner's loopback address. Native ARM64 BuildKit and the imager
@@ -79,10 +86,15 @@ Buildx version, BuildKit image digest and registry image digest are pinned.
 
 ## Extensions and hardware scope
 
-No system extensions are selected by default. The inherited iSCSI/util-linux
-extension resolution has not been carried into the workflow. Add an extension
-only through a reviewed, pinned input change with a documented need; no live
-extension change is authorized. The vendor kernel/device-tree port is T-3 work.
+No system extensions are selected by default. No current workload needs
+gVisor, iSCSI, Longhorn or GPU extensions, and the inherited iSCSI/util-linux
+example is gone. Add an extension only through a reviewed, pinned input change
+with a documented need; no live extension change is authorized.
+
+The kernel keeps the Pi 5 RP1 Ethernet, SD, USB host and storage, and XFS
+support built in, with the Talos hardening gate passing. Carried MACB/Ethernet
+patches that the vendor kernel already contains, or that Raspberry Pi reverted,
+are no longer applied; see [build evidence](docs/build-evidence.md#patch-dispositions).
 
 Upstream reported tests on the following hardware for earlier builds. These are
 upstream historical reports, not verification of a candidate from this fork:

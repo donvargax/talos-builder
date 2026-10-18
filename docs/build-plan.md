@@ -128,3 +128,20 @@ T-3 remains todo and unowned for a separate session. Start with `itos go` and
 `itos work show T-3`; keep real builds on hosted ARM64 runners. Do not treat the
 still-inherited 1.13.2 pins as a completed 1.14.2 port. The original infrastructure
 session is returning to its remaining discussions, not starting T-3 here.
+
+## Input port checkpoint (T-3)
+
+The Makefile now pins Talos `v1.14.2` (`f513c735`), pkgs `v1.14.0-37-g6c312e4`
+(`6c312e4b`), tools `v1.14.0-8-g9776960` (`9776960b`), sbc-raspberrypi `v0.2.2`
+(`7aba05ed`) and the Raspberry Pi vendor kernel `stable_20260911` (`cff533ae`,
+Linux 6.18.50). The kernel and the Pi 5 device trees are built from that one
+vendor commit. The kernel config is rebased onto pkgs 1.14, the Talos module
+list is filtered to what the config builds as modules, and the overlay's
+mainline device-tree patches are skipped. The MACB/EEE patches the vendor
+kernel already contains, or that Raspberry Pi reverted, are not applied. No
+kernel driver work was needed, and no extension is added.
+
+Patches were preflighted on the pinned commits, and the hardening gate and an
+offline Kconfig resolution were run locally. Nothing was compiled locally.
+[Build evidence](build-evidence.md) has the pin verification, patch
+dispositions, hosted run results, limitations and the next action.
