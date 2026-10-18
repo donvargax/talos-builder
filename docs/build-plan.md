@@ -145,3 +145,10 @@ Patches were preflighted on the pinned commits, and the hardening gate and an
 offline Kconfig resolution were run locally. Nothing was compiled locally.
 [Build evidence](build-evidence.md) has the pin verification, patch
 dispositions, hosted run results, limitations and the next action.
+
+The first hosted candidate run (39119043410) built every phase, but its
+collector expected the pre-1.14 `.raw.xz` image name. After that fix, run
+[39125900949](https://github.com/donvargax/talos-builder/actions/runs/39125900949)
+on `82964693979b52ab3ae0cc6626c2c240dd218f7a` succeeded. It produced the raw
+Pi 5 image, the installer archive, checksums and provenance. That is compile
+evidence only. Hardware testing (step 5 above) and the 1.12/1.13 stages remain.

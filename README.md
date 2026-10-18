@@ -8,7 +8,10 @@ and the `sbc-raspberrypi` v0.2.2 overlay are pinned to full commits, and the
 kernel and Pi 5 device trees both come from Raspberry Pi's `stable_20260911`
 vendor kernel (Linux 6.18.50). [Build evidence](docs/build-evidence.md) records
 how each pin was verified, what happened to each carried patch, and every
-hosted candidate run.
+hosted candidate run. Run
+[39125900949](https://github.com/donvargax/talos-builder/actions/runs/39125900949)
+built the current candidate from commit `8296469`. It is retained as a 14-day
+workflow artifact, not as a release.
 
 No candidate has been hardware-tested. A green offline check or a successful
 hosted compile does not establish boot compatibility, upgrade safety, Ethernet

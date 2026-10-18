@@ -169,7 +169,53 @@ runs only by manual dispatch of a `main` commit whose fast CI passed.
 | Run | Head SHA | Outcome | Notes |
 | --- | --- | --- | --- |
 | [CI 39119012715](https://github.com/donvargax/talos-builder/actions/runs/39119012715) | `19a8bd3ba58042e91dbaee013d526d1691553184` | success | Fast offline checks for the ported inputs. |
-| [Candidate 39119043410](https://github.com/donvargax/talos-builder/actions/runs/39119043410), attempt 1 | `19a8bd3ba58042e91dbaee013d526d1691553184` | failure (89 min) | Every phase passed: checkouts and pin verification, patches, the vendor kernel with modules and DTBs, initramfs, installer-base, imager, overlay, installer and image. The final evidence check failed: the Talos 1.14 imager `metal` profile writes `metal-arm64.raw.zst`, while the collector expected the pre-1.14 `.raw.xz` name, so the raw image was not retained. Artifact `pi5-candidate-19a8bd3…-39119043410-1` (`sha256:8df389bce5417a66e38181b9ecbe1b086ce8651792b9eb75ded7fd980a90a580`, 15 files, 152 MB) keeps the phase logs and provenance. Its size suggests the installer archive is in it too, but that was not checked. Fixed by collecting the `.zst` output under `metal-arm64-rpi5.raw.zst`; success still requires both images. |
+| [Candidate 39119043410](https://github.com/donvargax/talos-builder/actions/runs/39119043410), attempt 1 | `19a8bd3ba58042e91dbaee013d526d1691553184` | failure (89 min) | Every phase passed: checkouts and pin verification, patches, the vendor kernel with modules and DTBs, initramfs, installer-base, imager, overlay, installer and image. The final evidence check failed: the Talos 1.14 imager `metal` profile writes `metal-arm64.raw.zst`, while the collector expected the pre-1.14 `.raw.xz` name, so the raw image was not retained. Artifact `pi5-candidate-19a8bd3…-39119043410-1` (`sha256:8df389bce5417a66e38181b9ecbe1b086ce8651792b9eb75ded7fd980a90a580`, 15 files, 152 MB) keeps the phase logs and provenance. It also holds `installer-arm64.tar` (checked after download). Fixed by collecting the `.zst` output under `metal-arm64-rpi5.raw.zst`; success still requires both images. |
+| [CI 39125858924](https://github.com/donvargax/talos-builder/actions/runs/39125858924) | `82964693979b52ab3ae0cc6626c2c240dd218f7a` | success | Fast offline checks for the collector fix. |
+| [Candidate 39125900949](https://github.com/donvargax/talos-builder/actions/runs/39125900949), attempt 1 | `82964693979b52ab3ae0cc6626c2c240dd218f7a` | **success** (90 min) | Every step succeeded. See "What run 39125900949 built" below. |
+
+### What run 39125900949 built
+
+The run's head SHA, dispatch event and step outcomes were read back from the
+GitHub API. The artifact was downloaded and inspected offline; nothing was
+booted.
+
+- Artifact `pi5-candidate-82964693979b52ab3ae0cc6626c2c240dd218f7a-39125900949-1`,
+  id 12138238175, 16 files, 256,551,708 bytes, digest
+  `sha256:b3c613dfb9979ed6d347dfb5938f3db12e77534ccba779627101c929435df3c9`,
+  retained until 2026-11-01.
+- `metal-arm64-rpi5.raw.zst` (104,504,869 bytes), SHA-256
+  `67825bfd90701d082bafcc9fc38b825dde7427cfa55108108f15abfb9a3cb192`. It
+  decompresses to a 2.4 GB GPT disk with EFI, BIOS, BOOT (XFS) and META
+  partitions. The EFI partition holds U-Boot 2026.01 (`u-boot.bin`), the
+  overlay's `config.txt` with the default `dtparam=i2c_arm=on`, and the
+  vendor `bcm2712*.dtb` files plus 392 files under `overlays/`.
+  `bcm2712-rpi-5-b.dtb` is `raspberrypi,5-model-b` / `brcm,bcm2712`, with
+  the RP1 Ethernet node `raspberrypi,rp1-gem`, `cdns,macb`, which is the
+  vendor `macb` driver's RP1 match.
+- `installer-arm64.tar` (147,979,776 bytes), SHA-256
+  `60b9511e8be5cb50db2150c7558edfb4174bc71eb237bef1d8472f26b46788b8`. It is
+  an image archive tagged only in the runner-local registry
+  (`localhost:5000/donvargax/talos-builder/...:candidate-8296469…-39125900949-1`).
+  Its kernel `usr/install/arm64/vmlinuz` reports
+  `Linux version 6.18.50-talos (clang version 22.1.8, LLD 22.1.8)`, and its
+  image contains the RP1 GEM, bcm2712 SDHCI, XFS and `macb_tx_timeout` code
+  built in. The overlay layer carries the rpi_5 installer, DTBs and U-Boot.
+- `SHA256SUMS` verifies every file in the artifact. `provenance.json`
+  records the dispatch SHA, run ID and attempt, the `github-hosted`
+  Linux/ARM64 runner, the pins, the input and patch hashes, the checkouts
+  before patching (`6c312e4b`, `f513c735`, `7aba05ed`) and after them, docker
+  28.0.4, buildx v0.28.0 and itos 6.5.1, with no extensions.
+- The logs show `Checkouts match the committed pins.`, all nine kept pkgs
+  kernel patches applied, the seven vendor duplicates removed, the hardening
+  gate passed, kernel `6.18.50-talos` with 16K pages and 48-bit VA, and
+  `depmod completed successfully with no warnings.` In run 39119043410's
+  kernel log, 20 vendor-only Kconfig symbols were new to the configuration.
+  They took their defaults: off, apart from the 16K page-size selector and
+  an I2C baud rate.
+
+No release, tag, `latest` image or public registry upload was made.
+Intermediate images lived only in the loopback registry on the disposable
+runner.
 
 ## Limitations
 
@@ -187,7 +233,10 @@ runs only by manual dispatch of a `main` commit whose fast CI passed.
 
 ## Next action
 
-Dispatch the candidate workflow for the pushed `main` head once its fast CI
-passes, then record the run here. Hardware boot, cold restart,
-Ethernet/etcd traffic and storage tests are a later, separately approved stage.
-A live migration still has to go through the 1.12 and 1.13 stages.
+T-3 produced a compile-verified candidate from run 39125900949. The next
+stage is the separately approved hardware test (registry idea
+`pi5-hardware-test`): boot from a spare SD card, cold restart,
+Ethernet/etcd traffic under load, and a read-only check of the USB XFS
+volume, keeping the current SD boot medium untouched. A live migration still
+goes through Talos 1.12 and 1.13 (`pi5-intermediate-minors`), with recovery
+material and an etcd snapshot first.
