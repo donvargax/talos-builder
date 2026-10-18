@@ -30,7 +30,7 @@ items:
     title: Port vendor-kernel inputs and build a Talos 1.14.2 candidate
     phase: 1
     owner: null
-    status: todo
+    status: doing
     depends_on: [T-2]
     kind: task
     why: >
