@@ -84,3 +84,13 @@ items:
       docker/setup-buildx-action at the pinned commits target the deprecated Node.js 20 and are
       being forced onto Node 24. Pin newer commits of each, keeping the commit-pin contract tests.
     refs: [.github/workflows/build.yaml, .github/workflows/ci.yml]
+  - id: itos-upgrade
+    title: Upgrade itos from 6.5.1 to 8.5.0
+    phase: 1
+    owner: null
+    status: todo
+    depends_on: []
+    kind: idea
+    why: >
+      User approved 2026-10-18. Run itos upgrade 8.5.0 between agents, apply its By hand steps,
+      update the AGENTS.md 6.5.1 line, reinstall hooks, itos config check.
