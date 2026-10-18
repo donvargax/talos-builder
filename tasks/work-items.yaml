@@ -89,3 +89,15 @@ items:
       Needs separate approval, recovery material and an etcd snapshot; no flashing of the live SD
       card. See docs/build-evidence.md.
     refs: [docs/build-evidence.md, docs/build-plan.md]
+  - id: pi5-intermediate-minors
+    title: Pi 5 vendor-kernel candidates for Talos 1.12 and 1.13
+    phase: 1
+    owner: null
+    status: todo
+    depends_on: []
+    kind: idea
+    why: >
+      Talos tests configuration migration between adjacent minors, so the live 1.11.1 node cannot
+      jump straight to 1.14.2. Each intermediate stage may need its own Pi-compatible vendor-kernel
+      candidate built and recorded the way T-3 did for 1.14.2.
+    refs: [docs/build-plan.md]
