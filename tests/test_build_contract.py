@@ -3,6 +3,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import tempfile
@@ -107,11 +108,10 @@ class WorkflowTests(unittest.TestCase):
     def test_itos_installer_matches_repository_pin(self):
         config = (ROOT / "itos.yaml").read_text()
         installer = (ROOT / "scripts/install-itos.sh").read_text()
-        self.assertIn('version: "6.5.1"', config)
-        self.assertIn("version=6.5.1", installer)
-        manifest = "1a0ac1e1fdb920668e3cba96cad9ea94d23d2c1b667fe4f60d5d77f1573a8a08"
-        self.assertIn(manifest, config)
-        self.assertIn("manifest_sha=" + manifest, installer)
+        version = re.search(r'^  version: "([0-9.]+)"$', config, re.M).group(1)
+        manifest = re.search(r'^  checksums: "([0-9a-f]{64})"', config, re.M).group(1)
+        self.assertIn(f"\nversion={version}\n", installer)
+        self.assertIn(f"\nmanifest_sha={manifest}\n", installer)
         self.assertLess(installer.index('"$manifest_sha" | sha256sum'), installer.index('tar -xzf'))
         self.assertLess(installer.index('sha256sum --check --strict archive.sha256'), installer.index('tar -xzf'))
 

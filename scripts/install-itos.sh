@@ -2,8 +2,8 @@
 # Networked CI bootstrap, not part of make check. Check the checksum manifest
 # against the repository pin before trusting its per-platform archive checksum.
 set -euo pipefail
-version=6.5.1
-manifest_sha=1a0ac1e1fdb920668e3cba96cad9ea94d23d2c1b667fe4f60d5d77f1573a8a08
+version=8.5.0
+manifest_sha=38af6f5e838c23a609d307973a17b317aba295937ed5b48836b7f7208e4d2cb0
 case $(uname -m) in
     x86_64) arch=amd64 ;;
     aarch64) arch=arm64 ;;

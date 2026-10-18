@@ -15,7 +15,7 @@
           "uses": "actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5",
           "with": {"ref": "${{ github.sha }}", "persist-credentials": false, "fetch-depth": 0}
         },
-        {"name": "Install verified itos 6.5.1", "run": "bash scripts/install-itos.sh"},
+        {"name": "Install the pinned itos", "run": "bash scripts/install-itos.sh"},
         {"name": "Offline preflight", "run": "make check"},
         {"name": "Initialize evidence and local registry", "run": "bash scripts/candidate.sh prepare"},
         {

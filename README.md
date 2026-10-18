@@ -21,7 +21,7 @@ scope and work order.
 
 ## Safe local checks
 
-With Python 3, Bash, GNU Make, Git and the repository-pinned itos 6.5.1 installed:
+With Python 3, Bash, GNU Make, Git and the itos release `itos.yaml` pins installed:
 
 ```bash
 make check
@@ -39,7 +39,7 @@ those commits. Build targets refuse execution outside the controlled hosted
 ARM64 job.
 
 Pushes and pull requests run only these fast checks and managed-commit
-verification in [ci.yml](.github/workflows/ci.yml). CI installs itos 6.5.1 only
+verification in [ci.yml](.github/workflows/ci.yml). CI installs the pinned itos only
 after checking its release checksum manifest against the committed hash and
 verifying the platform archive. No PR write permissions or registry credentials
 are used. itos watches this workflow for the exact pushed SHA.
