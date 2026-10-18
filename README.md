@@ -65,7 +65,8 @@ to the disposable hosted runner, not a local or cluster machine.
 The job uploads `pi5-candidate-<SHA>-<run ID>-<attempt>` evidence for 14 days,
 including on failure. A successful build must include:
 
-- `metal-arm64-rpi5.raw.xz`, the compressed raw Pi 5 recovery image;
+- `metal-arm64-rpi5.raw.zst`, the zstd-compressed raw Pi 5 recovery image (the
+  Talos 1.14 `metal` profile output);
 - `installer-arm64.tar`, the installer container archive, without publication;
 - `SHA256SUMS` for the captured files;
 - `provenance.json`, recording committed pins, input/patch hashes, resolved

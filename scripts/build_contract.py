@@ -153,7 +153,7 @@ def plan():
     print("Native ubuntu-24.04-arm; BuildKit and imager use host network.")
     for phase in PHASES:
         print(f"  make {phase}")
-    print("Evidence: installer-arm64.tar, metal-arm64-rpi5.raw.xz, SHA256SUMS,")
+    print("Evidence: installer-arm64.tar, metal-arm64-rpi5.raw.zst, SHA256SUMS,")
     print("          provenance.json, committed input/patch hashes, phase/failure logs.")
     print("No commands above were executed. No extensions selected by default.")
 
@@ -225,7 +225,7 @@ def collect(require_images=False):
     # historical Actions logs. No environment dump or credential-bearing config.
     (logs / "registry.log").write_text(command(["docker", "logs", "candidate-registry"]))
     (logs / "buildx.txt").write_text(command(["docker", "buildx", "ls"]))
-    expected = {"installer-arm64.tar": "installer-arm64.tar", "metal-arm64.raw.xz": "metal-arm64-rpi5.raw.xz"}
+    expected = {"installer-arm64.tar": "installer-arm64.tar", "metal-arm64.raw.zst": "metal-arm64-rpi5.raw.zst"}
     for source, target in expected.items():
         file = ROOT / "checkouts/talos/_out" / source
         if file.is_file() and file.stat().st_size:

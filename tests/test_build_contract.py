@@ -238,9 +238,14 @@ class PlanAndEvidenceTests(unittest.TestCase):
                 images = root / "checkouts/talos/_out"
                 images.mkdir(parents=True)
                 (images / "installer-arm64.tar").write_bytes(b"fixture installer")
-                (images / "metal-arm64.raw.xz").write_bytes(b"fixture raw image")
+                (images / "metal-arm64.raw.xz").write_bytes(b"not the Talos 1.14 metal output")
+                with self.assertRaisesRegex(ValueError, "missing installer/raw"):
+                    contract.collect(require_images=True)
+                (images / "installer-arm64.tar").write_bytes(b"fixture installer")
+                (images / "metal-arm64.raw.zst").write_bytes(b"fixture raw image")
                 (images / "credential.env").write_text("must never be collected")
                 contract.collect(require_images=True)
+                self.assertTrue((dest / "metal-arm64-rpi5.raw.zst").is_file())
                 self.assertFalse((dest / "credential.env").exists())
                 for line in (dest / "SHA256SUMS").read_text().splitlines():
                     digest, name = line.split("  ", 1)
