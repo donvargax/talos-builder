@@ -168,7 +168,8 @@ runs only by manual dispatch of a `main` commit whose fast CI passed.
 
 | Run | Head SHA | Outcome | Notes |
 | --- | --- | --- | --- |
-| _none yet_ | | | |
+| [CI 39119012715](https://github.com/donvargax/talos-builder/actions/runs/39119012715) | `19a8bd3ba58042e91dbaee013d526d1691553184` | success | Fast offline checks for the ported inputs. |
+| [Candidate 39119043410](https://github.com/donvargax/talos-builder/actions/runs/39119043410), attempt 1 | `19a8bd3ba58042e91dbaee013d526d1691553184` | failure (89 min) | Every phase passed: checkouts and pin verification, patches, the vendor kernel with modules and DTBs, initramfs, installer-base, imager, overlay, installer and image. The final evidence check failed: the Talos 1.14 imager `metal` profile writes `metal-arm64.raw.zst`, while the collector expected the pre-1.14 `.raw.xz` name, so the raw image was not retained. Artifact `pi5-candidate-19a8bd3…-39119043410-1` (`sha256:8df389bce5417a66e38181b9ecbe1b086ce8651792b9eb75ded7fd980a90a580`, 15 files, 152 MB) keeps the phase logs and provenance. Its size suggests the installer archive is in it too, but that was not checked. Fixed by collecting the `.zst` output under `metal-arm64-rpi5.raw.zst`; success still requires both images. |
 
 ## Limitations
 
